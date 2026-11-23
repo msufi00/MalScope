@@ -3,21 +3,24 @@ from pathlib import Path
 
 
 def load_rules(rules_path: str | Path = "rules.json") -> dict:
-    """Load detection rules from rules.json with safe fallback defaults."""
+    """Load detection rules from rules.json and fail loudly if missing or invalid."""
     path = Path(rules_path)
-    default_rules = {
-        "entropy_threshold": 7.0,
-        "levels": {"clean_max": 25, "suspicious_max": 60},
-        "suspicious_apis": [],
-    }
-    if not path.exists():
-        return default_rules
+    if not path.exists() or not path.is_file():
+        raise FileNotFoundError(f"Rules file not found: {path}")
 
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-        return {**default_rules, **data}
-    except (json.JSONDecodeError, OSError):
-        return default_rules
+    except (json.JSONDecodeError, OSError) as err:
+        raise ValueError(f"Failed to parse rules file '{path}': {err}") from err
+
+    if not isinstance(data, dict) or "suspicious_apis" not in data:
+        raise ValueError(f"Invalid rules format in '{path}': missing 'suspicious_apis' key.")
+
+    return {
+        "entropy_threshold": data.get("entropy_threshold", 7.0),
+        "levels": data.get("levels", {"clean_max": 25, "suspicious_max": 60}),
+        "suspicious_apis": data["suspicious_apis"],
+    }
 
 
 def _normalize_api_name(name: str) -> str:
@@ -60,6 +63,7 @@ def match_suspicious_apis(imports: dict, rules_data: dict) -> list[dict]:
 
     return matches
 
+
 def group_by_mitre_tactics(matched_apis: list[dict]) -> dict:
     """Group matched suspicious APIs by MITRE ATT&CK tactic and technique."""
     tactics = {}
@@ -73,7 +77,6 @@ def group_by_mitre_tactics(matched_apis: list[dict]) -> dict:
         if tactic_name not in tactics:
             tactics[tactic_name] = []
 
-        # Check if this technique already exists under the current tactic
         existing = next(
             (t for t in tactics[tactic_name] if t["technique_id"] == tech_id),
             None,

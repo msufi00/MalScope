@@ -1,8 +1,13 @@
 import argparse
 import json
 import sys
+from pathlib import Path
 from malscope.core import analyze_file, save_report
 from malscope.guardrails import require_legal_authorization, setup_kill_switch, validate_scope
+
+BASE_DIR = Path(__file__).resolve().parent
+DEFAULT_RULES_PATH = BASE_DIR / "rules.json"
+DEFAULT_ALLOW_DIR = str(BASE_DIR / "samples")
 
 
 def parse_args():
@@ -76,7 +81,7 @@ def main():
     args = parse_args()
     require_legal_authorization()
 
-    allowed_dirs = args.allow_dir if args.allow_dir else ["samples"]
+    allowed_dirs = args.allow_dir if args.allow_dir else [DEFAULT_ALLOW_DIR]
 
     try:
         target = validate_scope(args.file, allowed_dirs)
@@ -89,7 +94,12 @@ def main():
         sys.exit(0)
 
     print(f"\n[+] Analyzing target: {target}")
-    report = analyze_file(target, rules_path="rules.json")
+    try:
+        report = analyze_file(target, rules_path=DEFAULT_RULES_PATH)
+    except (FileNotFoundError, ValueError) as err:
+        print(f"[ERROR] {err}")
+        sys.exit(1)
+
     saved_path = save_report(report, out_dir=args.out, fmt=args.format)
 
     if args.format == "json":
