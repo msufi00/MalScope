@@ -13,7 +13,7 @@ IGNORED_XML_DOMAINS = {
 }
 
 
-def calculate_entropy(data: bytes) -> float:
+def calculate_shannon_entropy(data: bytes) -> float:
     """Calculate Shannon entropy of a byte sequence (0.0 to 8.0)."""
     if not data:
         return 0.0
@@ -24,6 +24,9 @@ def calculate_entropy(data: bytes) -> float:
         p = count / length
         entropy -= p * math.log2(p)
     return round(entropy, 4)
+
+
+calculate_entropy = calculate_shannon_entropy
 
 
 def extract_iocs(raw_bytes: bytes) -> dict:
