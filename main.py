@@ -15,7 +15,7 @@ def parse_args():
   python main.py --file samples/notepad.exe
   python main.py --file samples/notepad.exe --format json
   python main.py --file samples/eicar.com --dry-run
-  python main.py --file D:/TestLab/sample.exe --allow-dir D:/TestLab --format json
+  python main.py --serve
 """
     parser = argparse.ArgumentParser(
         prog="malscope",
@@ -28,14 +28,21 @@ def parse_args():
     parser.add_argument("--out", default="output", help="Local output directory (default: output)")
     parser.add_argument("--format", choices=["text", "json"], default="text", help="Output report format (default: text)")
     parser.add_argument("--dry-run", action="store_true", help="Validate file and directory scope without generating a report")
+    parser.add_argument("--serve", action="store_true", help="Launch local Flask Web UI on 127.0.0.1:5000")
+    parser.add_argument("--port", type=int, default=5000, help="Local port for Web UI (default: 5000)")
     return parser.parse_args()
 
 
 def main():
     setup_kill_switch()
     args = parse_args()
-    require_legal_authorization()
 
+    if args.serve:
+        from web.app import run_web_server
+        run_web_server(host="127.0.0.1", port=args.port)
+        return
+
+    require_legal_authorization()
     allowed_dirs = args.allow_dir if args.allow_dir else [DEFAULT_ALLOW_DIR]
 
     try:
