@@ -52,8 +52,8 @@
     {
       "api": "IsDebuggerPresent",
       "category": "anti_analysis",
-      "weight": 15,
-      "why": "Checks if a debugger is attached to evade analysis",
+      "weight": 5,
+      "why": "Checks if a debugger is attached (common in CRT/anti-debugging)",
       "mitre": {
         "tactic": "Defense Evasion",
         "technique_id": "T1622",
@@ -63,8 +63,8 @@
     {
       "api": "RegSetValueExA",
       "category": "persistence",
-      "weight": 15,
-      "why": "Modifies Windows Registry keys for persistence",
+      "weight": 8,
+      "why": "Modifies Windows Registry keys (configuration or persistence)",
       "mitre": {
         "tactic": "Persistence",
         "technique_id": "T1547.001",
@@ -74,7 +74,7 @@
     {
       "api": "ShellExecuteA",
       "category": "execution",
-      "weight": 15,
+      "weight": 10,
       "why": "Executes external commands or programs",
       "mitre": {
         "tactic": "Execution",
@@ -85,8 +85,8 @@
     {
       "api": "InternetOpenA",
       "category": "network",
-      "weight": 15,
-      "why": "Initializes internet connection for C2 communication",
+      "weight": 10,
+      "why": "Initializes internet connection for network communication",
       "mitre": {
         "tactic": "Command and Control",
         "technique_id": "T1071",
