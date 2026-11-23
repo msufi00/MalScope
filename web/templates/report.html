@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Analysis Report: {{ report.file.name }} — MalScope</title>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --surface: #131c31;
+      --surface-2: #19243e;
+      --border: #263554;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.5;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 28px;
+      border-bottom: 1px solid var(--border);
+      background: #0e1629;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 17px;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .nav-actions { display: flex; gap: 10px; align-items: center; }
+    .btn-new {
+      background: #1e293b;
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+    }
+    .btn-new:hover { background: #28354d; }
+    .btn-stop {
+      background: transparent;
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.45);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .wrap {
+      max-width: 1120px;
+      margin: 28px auto 60px;
+      padding: 0 22px;
+      display: grid;
+      gap: 20px;
+    }
+    .report-head {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+    }
+    .report-head h1 { margin: 0; font-size: 26px; }
+    .report-head h1 span { color: #60a5fa; font-family: var(--mono); }
+    .ts { font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
+
+    /* Verdict Banner */
+    .verdict {
+      border-radius: 14px;
+      padding: 20px 24px;
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      border: 1px solid;
+    }
+    .v-MALICIOUS { background: #fee2e2; color: #7f1d1d; border-color: #f87171; }
+    .v-SUSPICIOUS { background: #fef3c7; color: #78350f; border-color: #fbbf24; }
+    .v-CLEAN { background: #dcfce7; color: #14532d; border-color: #4ade80; }
+    .v-UNSUPPORTED { background: #e2e8f0; color: #1e293b; border-color: #94a3b8; }
+    .verdict h2 { margin: 0; font-size: 22px; letter-spacing: 0.02em; }
+    .verdict .score { font-weight: 600; font-size: 14px; margin: 2px 0 8px; }
+    .verdict ul { margin: 0; padding-left: 18px; font-size: 13.5px; }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+    @media (max-width: 820px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 22px;
+    }
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .card-head h3 { margin: 0; font-size: 17px; }
+    .kv { display: grid; gap: 10px; font-size: 13.5px; }
+    .kv-label { color: var(--muted); font-size: 12px; font-weight: 600; }
+    .hash {
+      font-family: var(--mono);
+      font-size: 12px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+      border-radius: 6px;
+      word-break: break-all;
+      display: inline-block;
+      margin-top: 2px;
+    }
+
+    /* Entropy Donut */
+    .donut-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 0;
+    }
+    .sec-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 14px;
+      justify-content: center;
+    }
+    .sec-pill {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .sec-pill.high { border-color: #ef4444; color: #fca5a5; }
+
+    /* MITRE ATT&CK Cards */
+    .pill-count {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.45);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 999px;
+    }
+    .mitre-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 14px;
+    }
+    .tactic-card {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .tactic-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #f87171;
+      margin-bottom: 8px;
+    }
+    .tech-item + .tech-item {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+    .tech-name { font-weight: 600; font-size: 13.5px; }
+    .tech-why { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    .tech-apis { font-family: var(--mono); font-size: 11.5px; color: #93c5fd; margin-top: 4px; }
+    .ioc-list {
+      margin: 6px 0 0;
+      padding-left: 18px;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      color: #cbd5e1;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2.2">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      <span>MalScope</span>
+    </a>
+    <div class="nav-actions">
+      <a href="/" class="btn-new">+ New Scan</a>
+      <form method="post" action="/shutdown" style="margin:0">
+        <button type="submit" class="btn-stop">Stop Server</button>
+      </form>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="report-head">
+      <h1>Analysis Report: <span>{{ report.file.name }}</span></h1>
+      <span class="ts">{{ report.analyzed_at }}</span>
+    </div>
+
+    <!-- Verdict Banner -->
+    <section class="verdict v-{{ report.risk.verdict }}">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex:none;margin-top:2px">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <div>
+        <h2>{{ report.risk.verdict }}</h2>
+        <div class="score">Risk Score: {{ report.risk.score }} / {{ report.risk.max_score }}</div>
+        <ul>
+          {% for reason in report.risk.reasons %}
+          <li>{{ reason }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+    <!-- File Details + Entropy Analysis -->
+    <section class="grid-2">
+      <div class="card">
+        <div class="card-head">
+          <h3>File Details</h3>
+          <span style="font-size:12px;color:var(--muted)">{{ report.file.size }} bytes</span>
+        </div>
+        <div class="kv">
+          <div>
+            <div class="kv-label">MD5</div>
+            <div class="hash">{{ report.file.md5 }}</div>
+          </div>
+          <div>
+            <div class="kv-label">SHA-256</div>
+            <div class="hash">{{ report.file.sha256 }}</div>
+          </div>
+          <div>
+            <div class="kv-label">Imphash</div>
+            <div class="hash">{{ report.file.imphash }}</div>
+          </div>
+          <div>
+            <div class="kv-label">Overall Entropy &bull; File Type</div>
+            <div style="margin-top:3px">
+              <strong>{{ "%.4f"|format(report.file.overall_entropy) }} / 8.0000</strong> &mdash; {{ report.file.type }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>Entropy Analysis</h3>
+          <span style="font-size:12px;color:var(--muted)">Threshold: 7.0</span>
+        </div>
+        <div class="donut-box">
+          <div style="font-size:13px;color:var(--muted);margin-bottom:8px">{{ "%.3f"|format(report.file.overall_entropy) }} bits ({{ entropy_pct }}%)</div>
+          {% set ring_color = "#ef4444" if report.file.overall_entropy > 7.0 else ("#f59e0b" if report.file.overall_entropy > 6.0 else "#22c55e") %}
+          <svg width="160" height="160" viewBox="0 0 36 36">
+            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none" stroke="#263554" stroke-width="3.2"/>
+            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none" stroke="{{ ring_color }}" stroke-width="3.2"
+                  stroke-dasharray="{{ entropy_pct }}, 100"/>
+            <text x="18" y="19.5" text-anchor="middle" fill="#f1f5f9" font-size="6.2" font-weight="700">
+              {{ "%.2f"|format(report.file.overall_entropy) }}
+            </text>
+          </svg>
+          {% if report.pe.sections %}
+          <div class="sec-pills">
+            {% for sec in report.pe.sections %}
+            <span class="sec-pill {{ 'high' if sec.high_entropy else '' }}">{{ sec.name }}: {{ "%.2f"|format(sec.entropy) }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+
+    <!-- MITRE ATT&CK Mapping -->
+    <section class="card">
+      <div class="card-head">
+        <h3>Hacker Tactics Detected <span style="font-size:12px;color:var(--muted);font-weight:400">(MITRE ATT&amp;CK)</span></h3>
+        <span class="pill-count">{{ report.mitre_tactics|length }} Tactic(s)</span>
+      </div>
+
+      {% if report.mitre_tactics %}
+      <div class="mitre-grid">
+        {% for tactic, techs in report.mitre_tactics.items() %}
+        <div class="tactic-card">
+          <div class="tactic-label">{{ tactic }}</div>
+          {% for t in techs %}
+          <div class="tech-item">
+            <div class="tech-name">{{ t.technique_name }} ({{ t.technique_id }})</div>
+            <div class="tech-why">{{ t.why }}</div>
+            <div class="tech-apis">&lt;/&gt; {{ t.apis|join(", ") }}</div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p style="color:var(--muted);margin:0;font-size:13.5px">No suspicious Windows API imports mapped to MITRE ATT&amp;CK techniques.</p>
+      {% endif %}
+    </section>
+
+    <!-- Network IOCs -->
+    <section class="card">
+      <div class="card-head">
+        <h3>Embedded Network Indicators (IOCs)</h3>
+        <span style="font-size:12px;color:var(--muted)">{{ report.iocs.urls|length }} URL(s), {{ report.iocs.ips|length }} IP(s)</span>
+      </div>
+      {% if report.iocs.urls or report.iocs.ips %}
+      <ul class="ioc-list">
+        {% for u in report.iocs.urls[:15] %}<li>[URL] {{ u }}</li>{% endfor %}
+        {% for ip in report.iocs.ips[:15] %}<li>[IPv4] {{ ip }}</li>{% endfor %}
+      </ul>
+      {% else %}
+      <p style="color:var(--muted);margin:0;font-size:13.5px">No embedded URLs or IPv4 addresses extracted.</p>
+      {% endif %}
+    </section>
+  </main>
+</body>
+</html>
