@@ -27,9 +27,13 @@ def require_legal_authorization():
 ====================================================================
 """
     print(banner)
-    choice = input("Do you have authorization to analyze this file? (type YES to continue): ").strip()
+    try:
+        choice = input("Do you have authorization to analyze this file? (type YES to continue): ").strip()
+    except EOFError:
+        choice = ""
+
     if choice != "YES":
-        print("[!] Authorization not confirmed. Exiting.")
+        print("\n[!] Authorization not confirmed. Exiting.")
         sys.exit(1)
 
 
