@@ -1,5 +1,7 @@
+from __future__ import annotations
 import json
 from pathlib import Path
+
 
 
 def load_rules(rules_path: str | Path = "rules.json") -> dict:
