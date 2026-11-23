@@ -1,15 +1,14 @@
 import argparse
+import json
 import sys
-from pathlib import Path
-from malscope.analyzers import extract_iocs
-from malscope.guardrails import setup_kill_switch, require_legal_authorization, validate_scope
-from malscope.pe_parser import parse_pe_file
-from malscope.rules import load_rules, match_suspicious_apis, group_by_mitre_tactics
+from malscope.core import analyze_file, save_report
+from malscope.guardrails import require_legal_authorization, setup_kill_switch, validate_scope
 
 
 def parse_args():
     examples = """Usage examples:
   python main.py --file samples/notepad.exe
+  python main.py --file samples/notepad.exe --format json
   python main.py --file samples/eicar.com --dry-run
   python main.py --file D:/TestLab/sample.exe --allow-dir D:/TestLab --format json
 """
@@ -25,6 +24,51 @@ def parse_args():
     parser.add_argument("--format", choices=["text", "json"], default="text", help="Output report format (default: text)")
     parser.add_argument("--dry-run", action="store_true", help="Validate file and directory scope without generating a report")
     return parser.parse_args()
+
+
+def print_text_summary(report: dict):
+    """Print readable static analysis results to the terminal."""
+    f = report["file"]
+    r = report["risk"]
+    pe = report["pe"]
+
+    print("\n====================================================================")
+    print(f"  VERDICT: {r['verdict']}  |  RISK SCORE: {r['score']} / {r['max_score']}")
+    print("====================================================================")
+    for reason in r["reasons"]:
+        print(f"  * {reason}")
+
+    print("\n[FILE DETAILS]")
+    print(f"  Name    : {f['name']} ({f['size']} bytes)")
+    print(f"  Type    : {f['type']}")
+    print(f"  MD5     : {f['md5']}")
+    print(f"  SHA-256 : {f['sha256']}")
+    print(f"  Imphash : {f['imphash']}")
+    print(f"  Entropy : {f['overall_entropy']:.4f} / 8.0000")
+
+    print(f"\n[NETWORK IOCs] ({len(report['iocs']['urls'])} URL(s), {len(report['iocs']['ips'])} IP(s))")
+    for url in report["iocs"]["urls"][:10]:
+        print(f"  - URL: {url}")
+    for ip in report["iocs"]["ips"][:10]:
+        print(f"  - IP : {ip}")
+
+    if not pe["is_valid_pe"]:
+        print(f"\n[WARN] {pe['error']}")
+        return
+
+    print(f"\n[PE SECTIONS] ({len(pe['sections'])} sections)")
+    for sec in pe["sections"]:
+        flag = " [HIGH ENTROPY - Possible Packing]" if sec["high_entropy"] else ""
+        print(f"  - {sec['name']:<10} | Raw Size: {sec['raw_size']:<8} | Entropy: {sec['entropy']:.4f}{flag}")
+
+    print(f"\n[MITRE ATT&CK MAPPING] ({len(report['mitre_tactics'])} tactic(s))")
+    if not report["mitre_tactics"]:
+        print("  - None")
+    for tactic, techs in report["mitre_tactics"].items():
+        print(f"  [{tactic.upper()}]")
+        for t in techs:
+            apis_str = ", ".join(t["apis"])
+            print(f"    - {t['technique_name']} ({t['technique_id']}) -> {t['why']} [{apis_str}]")
 
 
 def main():
@@ -44,45 +88,16 @@ def main():
         print(f"[DRY-RUN] '{target.name}' passed scope check ({target.stat().st_size} bytes). No report written.")
         sys.exit(0)
 
-    Path(args.out).mkdir(parents=True, exist_ok=True)
-    print(f"\n[+] Starting static analysis on: {target}")
+    print(f"\n[+] Analyzing target: {target}")
+    report = analyze_file(target, rules_path="rules.json")
+    saved_path = save_report(report, out_dir=args.out, fmt=args.format)
 
-    pe_data = parse_pe_file(target)
-    iocs = extract_iocs(target.read_bytes())
+    if args.format == "json":
+        print(json.dumps(report, indent=2))
+    else:
+        print_text_summary(report)
 
-    print(f"[INFO] File    : {pe_data['file_name']} ({pe_data['file_size']} bytes)")
-    print(f"[INFO] Type    : {pe_data['file_type']}")
-    print(f"[INFO] MD5     : {pe_data['hashes']['md5']}")
-    print(f"[INFO] SHA-256 : {pe_data['hashes']['sha256']}")
-    print(f"[INFO] Imphash : {pe_data['imphash']}")
-    print(f"[INFO] Entropy : {pe_data['overall_entropy']:.4f} / 8.0000")
-    print(f"[INFO] IOCs    : {len(iocs['urls'])} URL(s), {len(iocs['ips'])} IP(s)")
-
-    if not pe_data["is_valid_pe"]:
-        print(f"[WARN] {pe_data['error']}")
-        sys.exit(0)
-
-    rules_data = load_rules("rules.json")
-    matched_apis = match_suspicious_apis(pe_data["imports"], rules_data)
-    mitre_tactics = group_by_mitre_tactics(matched_apis)
-
-    print(f"[INFO] Machine : {pe_data['headers']['machine']} | Compiled: {pe_data['headers']['compile_timestamp']}")
-    print(f"\n[INFO] Sections ({len(pe_data['sections'])}):")
-    for sec in pe_data["sections"]:
-        flag = " [HIGH ENTROPY - Possible Packing]" if sec["high_entropy"] else ""
-        print(f"  - {sec['name']:<10} | Raw Size: {sec['raw_size']:<8} | Entropy: {sec['entropy']:.4f}{flag}")
-
-    print(f"\n[INFO] Suspicious APIs Matched ({len(matched_apis)}):")
-    if not matched_apis:
-        print("  - None")
-    for item in matched_apis:
-        print(f"  - {item['api']} ({item['dll']}) -> {item['why']} [+{item['weight']}]")
-
-    if mitre_tactics:
-        print(f"\n[INFO] MITRE ATT&CK Tactics ({len(mitre_tactics)}):")
-        for tactic, techs in mitre_tactics.items():
-            tech_list = ", ".join(f"{t['technique_id']} {t['technique_name']}" for t in techs)
-            print(f"  - {tactic}: {tech_list}")
+    print(f"\n[+] Report saved locally to: {saved_path}")
 
 
 if __name__ == "__main__":
