@@ -1,380 +1,213 @@
-# MalScope
+# MalScope — Local Static Malware Analyzer
 
-**Local Static Malware Analyzer for Windows Portable Executable (PE) Files**
+**Course:** IKB31603 — Ethical Hacking  
+**Group:** GoodGuys (Muhammad Sufi bin Md Arif, Azim, Hakimi, Azamuddin)  
+**Category:** Malware Analysis (Static Analysis Only)
 
-MalScope is a lightweight, local-only malware triage tool developed in Python. It analyses Windows PE files (`.exe`, `.dll`, `.sys`, and `.com`) without executing or detonating them.
-
-The project provides both a Command-Line Interface (CLI) and a local Flask Web UI.
-
-| Item | Details |
-|---|---|
-| Course | IKB31603 - Ethical Hacking |
-| Category | Malware Analysis - Static Analysis |
-| Group | GoodGuys |
-| Group Members | Muhammad Sufi bin Md Arif, Azim, Hakimi, Azamuddin |
+MalScope is a local-only static malware triage tool built in Python for inspecting Windows Portable Executable (PE) files (`.exe`, `.dll`, `.sys`, `.com`). It computes cryptographic hashes, parses PE headers and section entropy, extracts embedded network indicators (URLs and IPv4 addresses), and maps suspicious Windows API imports to **MITRE ATT&CK** tactics and techniques via both a Command-Line Interface (CLI) and a dark-theme local Flask Web UI.
 
 ---
 
-## Table of Contents
-
-- [Overview](#overview)
-- [Ethical Use and Rules of Engagement](#ethical-use-and-rules-of-engagement)
-- [Key Features](#key-features)
-- [Technology Stack](#technology-stack)
-- [Project Structure](#project-structure)
-- [Installation](#installation)
-- [CLI Usage](#cli-usage)
-- [Web UI Usage](#web-ui-usage)
-- [Output Reports](#output-reports)
-- [Safety Guardrails](#safety-and-scope-guardrails)
-- [Limitations](#limitations)
-- [Troubleshooting](#troubleshooting)
-- [License](#license)
-
----
-
-## Overview
-
-MalScope performs static inspection by reading raw file bytes and PE metadata. It can extract:
-
-- MD5 and SHA-256 hashes
-- PE import hash (`imphash`)
-- PE headers and compile timestamp
-- Entry point and machine architecture
-- Section names and Shannon entropy
-- Embedded URLs and IPv4 indicators
-- Imported Windows APIs
-- MITRE ATT&CK tactics and technique IDs
-- A risk score and final verdict
-
-Supported verdicts are:
-
-| Verdict | Meaning |
-|---|---|
-| `CLEAN` | No significant suspicious indicators detected |
-| `SUSPICIOUS` | One or more indicators require further review |
-| `MALICIOUS` | Strong suspicious indicators detected |
-| `UNSUPPORTED` | The file is not a valid or supported PE file |
-
----
-
-## Ethical Use and Rules of Engagement
-
-MalScope is intended only for authorized academic labs and defensive malware analysis.
-
-- Obtain explicit authorization before analysing any file.
-- Do not scan or access files outside your authorization scope.
-- Static analysis must not replace permission, documentation, or an approved incident-response process.
-- The tool never executes target binaries or loads them as runnable code.
-- The tool does not upload files or send their hashes and contents to external services.
-- The user remains responsible for complying with applicable laws, including Malaysia's Computer Crimes Act 1997 / Act 563.
-
----
-
-## Key Features
-
-- **Cryptographic Identification**
-  - Generates MD5, SHA-256, and PE import hash values.
-- **PE Header Analysis**
-  - Displays machine architecture, compile timestamp, entry point, and section metadata.
-- **Entropy Analysis**
-  - Calculates Shannon entropy between `0.0` and `8.0`.
-  - Highlights sections with entropy greater than `7.0`, which may indicate packing or encryption.
-- **Windows API Detection**
-  - Matches imported functions from `rules.json`.
-  - Normalizes ANSI `A` and Unicode `W` suffixes before matching.
-- **MITRE ATT&CK Mapping**
-  - Groups suspicious detections by tactic and technique ID.
-- **Network Indicator Extraction**
-  - Searches raw bytes for HTTP/HTTPS URLs and IPv4 addresses.
-- **Risk Scoring**
-  - Produces a score from `0` to `100` with human-readable reasons.
-- **Dual Interfaces**
-  - Provides terminal output and an offline Flask Web Dashboard.
-- **Local Reports**
-  - Saves text or JSON reports under `output/`.
-
----
-
-## Technology Stack
-
-- Python 3.9+
-- `pefile` - PE parsing
-- Flask - local Web UI
-- Werkzeug - secure upload handling
-- HTML, CSS, and JavaScript - Web interface
-
----
-
-## Project Structure
+## 1. Architecture & Project Structure
 
 ```text
-MalScope/
-├── main.py                 # CLI entry point
-├── requirements.txt        # Python dependencies
-├── rules.json              # API detection and ATT&CK rules
-├── LICENSE
-├── README.md
-├── malscope/
-│   ├── core.py             # Main analysis and report functions
-│   ├── analyzers.py        # Hash, PE, entropy, and IOC analyzers
-│   ├── pe_parser.py        # PE structure parsing
-│   ├── risk.py             # Risk scoring
-│   ├── rules.py            # Rule loading and matching
-│   └── guardrails.py       # Authorization and scope checks
-├── samples/
-│   └── notepad.exe         # Local test sample
-├── web/
-│   ├── app.py              # Flask server
-│   └── templates/
-│       ├── index.html
-│       └── report.html
-└── output/                 # Generated reports
++-------------------+      +---------------------+      +-------------------------+
+|  CLI (main.py)    | ---> |  Guardrails         | ---> |  Core Engine (core.py)  |
+|  Web UI (app.py)  |      |  - CCA 1997 Consent |      |  - pe_parser.py (Hashes |
++-------------------+      |  - Scope & 50MB Cap |      |    & PE Headers/Imports)|
+                           |  - Kill Switches    |      |  - analyzers.py         |
+                           +---------------------+      |    (Entropy & IOC Regex)|
+                                                        |  - rules.py (MITRE Map) |
+                                                        |  - risk.py (0-100 Score)|
+                                                        +------------+------------+
+                                                                     |
+                                                                     v
+                                                        +-------------------------+
+                                                        |  Local Output / Web UI  |
+                                                        |  - output/*.txt / .json |
+                                                        |  - 127.0.0.1 Dashboard  |
+                                                        +-------------------------+
+```
+
+### Repository Layout
+
+- `main.py` — CLI entry point, argument parser, and `--serve` web launcher.
+- `rules.json` — Detection rule definitions, API weights, entropy threshold (7.0), and MITRE ATT&CK mappings.
+- `malscope/guardrails.py` — Legal authorization banner, directory scope validation, 50 MB size check, and Ctrl+C kill switch.
+- `malscope/pe_parser.py` — PE header validation, MD5 / SHA-256 / imphash computation, section extraction, and import table parsing.
+- `malscope/analyzers.py` — Shannon entropy calculation (0.0–8.0) and raw byte IOC extraction (URLs and IPv4 addresses).
+- `malscope/rules.py` — Rule loader, ANSI/Unicode (A/W) API normalizer, and MITRE ATT&CK tactic grouping.
+- `malscope/risk.py` — Heuristic risk scoring engine (0–100), verdict assignment (`CLEAN`, `SUSPICIOUS`, `MALICIOUS`, `UNSUPPORTED`), and reason builder.
+- `malscope/core.py` — Unified `analyze_file()` pipeline, shared `render_text()` formatter, and local report saver.
+- `web/app.py` & `web/templates/` — Offline Flask Web UI (127.0.0.1) with server-side consent validation and Host/Origin CSRF protection.
+- `samples/` — Authorized local sample directory (only `.gitkeep` is tracked in Git; binaries are excluded).
+- `output/` — Local report directory (`.txt` and `.json` outputs; ignored by Git).
+- `docs/` — Documentation screenshots for CLI and Web UI reports.
+
+---
+
+## 2. Attack Lifecycle & MITRE ATT&CK Mapping
+
+In the incident response and cyber attack lifecycle, MalScope operates in the **Pre-Execution / Post-Incident Artifact Triage** phase, allowing analysts to inspect suspicious binaries safely before detonation or sandbox execution.
+
+| Lifecycle / MITRE Tactic | Technique ID & Name | Monitored Windows APIs | Analyst Significance |
+|---|---|---|---|
+| Execution | T1059 Command and Scripting Interpreter | `ShellExecuteA` / `W` | Spawns secondary scripts, payloads, or system utilities. |
+| Persistence | T1547.001 Registry Run Keys / Startup Folder | `RegSetValueExA` / `W` | Modifies Windows Registry keys to survive system reboots. |
+| Defense Evasion | T1055 Process Injection | `VirtualAllocEx`, `WriteProcessMemory`, `CreateRemoteThread` | Allocates and executes malicious shellcode inside legitimate processes. |
+| Defense Evasion | T1622 Debugger Evasion | `IsDebuggerPresent` | Detects attached debuggers to alter behavior or hide payloads. |
+| Collection | T1056.001 Input Capture: Keylogging | `GetAsyncKeyState` | Captures user keystrokes to steal credentials or sensitive input. |
+| Command & Control | T1071 Application Layer Protocol / T1105 Ingress Tool Transfer | `InternetOpenA` / `W`, `URLDownloadToFileA` / `W` | Establishes C2 channels or downloads additional malware stages. |
+| Impact | T1486 Data Encrypted for Impact | `CryptEncrypt` | Encrypts local user files (common ransomware indicator). |
+
+---
+
+## 3. Rules of Engagement (RoE)
+
+All usage and testing of MalScope follow five strict Rules of Engagement:
+
+1. **Authorized Scope:** File inspection is strictly confined to explicit local lab directories (`samples/` by default, or user-approved `--allow-dir` folders) and localhost (`127.0.0.1`) for the Web UI.
+2. **Time Windows:** Executed solely during scheduled IKB31603 coursework development, controlled lab testing, and official lecturer demonstration/evaluation sessions (October–November 2026).
+3. **Permitted Techniques:** Non-intrusive, read-only static binary analysis (cryptographic hashing, PE header/section inspection, Shannon entropy calculation, regex IOC extraction, and rule-based API matching).
+4. **Prohibited Actions:**
+   - **No Execution:** Target binaries are never executed, loaded via `ctypes`/DLL loading, or detonated.
+   - **No Network Activity:** Zero outbound HTTP/API requests, hash lookups, or telemetry uploads.
+   - **No Unauthorized Access:** Scanning system directories outside approved scope or analyzing third-party proprietary files without authorization is prohibited.
+5. **Emergency Stop (Kill Switches):**
+   - **CLI:** Press `Ctrl + C` at any stage to trigger the SIGINT handler for immediate termination.
+   - **Web UI:** Click **Stop Server** (`POST /shutdown`) to terminate the local server immediately.
+
+---
+
+## 4. Data Handling & Legal Disclaimer
+
+### Data Handling Policy
+
+- **Local Report Storage:** CLI reports are written exclusively to the local `output/` directory as `malscope_<filename>_<verdict>_<timestamp>.txt` or `.json`.
+- **Zero External Transmission:** No file contents, hashes, or extracted IOCs are ever transmitted over the network.
+- **Ephemeral Web Uploads:** Files uploaded through the local Web UI are saved temporarily under randomized UUID filenames inside `output/.tmp_uploads/` and permanently deleted inside a `finally` block immediately after static analysis completes.
+- **Shutdown Behavior:** The Web UI `/shutdown` endpoint uses `os._exit(0)` after a 0.4 s response delay so background Werkzeug threads terminate cleanly without hanging; temporary upload files are already deleted before shutdown.
+
+### Legal Disclaimer (Displayed at Runtime)
+
+```text
+====================================================================
+  MALSCOPE - STATIC MALWARE ANALYZER (AUTHORIZED USE ONLY)
+====================================================================
+  LEGAL DISCLAIMER (COMPUTER CRIMES ACT 1997 / ACT 563):
+  This tool is strictly for static file analysis in an authorized
+  environment. Accessing or analyzing files or systems without
+  explicit permission is an offense under Malaysia's Computer
+  Crimes Act 1997. All outputs are saved locally (no network).
+====================================================================
 ```
 
 ---
 
-## Installation
+## 5. Responsible Disclosure
 
-### Requirements
+- **Discovering Active or Real-World Malware:** If MalScope identifies an active malicious sample during authorized triage, do not execute the file or share raw binaries over unsecured channels. Record its SHA-256 hash, network IOCs, and behavior summary, and report the incident to MyCERT (Malaysia Computer Emergency Response Team / Cyber999) via their official portal (<https://www.mycert.org.my>) or the affected organization's Security Operations Center (SOC).
+- **Reporting Vulnerabilities in MalScope:** If a security flaw, parser bug, or guardrail bypass is discovered in MalScope itself, please report it responsibly by opening an issue on <https://github.com/msufi00/MalScope/issues> or contacting the GoodGuys project team directly with reproduction steps before public disclosure.
 
-- Python 3.9 or later
-- Windows 10 or Windows 11 recommended
-- Internet access is required only to clone and install the project dependencies
+---
 
-### 1. Clone the repository
+## 6. Installation & Preparing Test Samples
 
-```powershell
-git clone https://github.com/msufi00/MalScope.git
-cd MalScope
-```
-
-### 2. Create a virtual environment
-
-```powershell
-python -m venv .venv
-```
-
-### 3. Activate the virtual environment
-
-PowerShell:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
-
-Command Prompt:
-
-```bat
-.venv\Scripts\activate.bat
-```
-
-Linux or macOS:
+**Requirements:** Python 3.9+ (tested on Windows 10/11).
 
 ```bash
+# 1. Clone the repository
+git clone https://github.com/msufi00/MalScope.git
+cd MalScope
+
+# 2. Create and activate a virtual environment
+python -m venv .venv
+# Windows PowerShell:
+.\.venv\Scripts\Activate.ps1
+# Linux / macOS:
 source .venv/bin/activate
-```
 
-### 4. Install dependencies
-
-```powershell
+# 3. Install dependencies
 pip install -r requirements.txt
 ```
 
----
+### Preparing Local Test Samples
 
-## CLI Usage
-
-### Scan the default sample
+To respect copyright and safety, `samples/` only tracks `.gitkeep` in Git. Prepare local test files inside `samples/` before running commands:
 
 ```powershell
+# 1. Create the safe EICAR standard antivirus test file (default CLI target)
+python -c "from pathlib import Path; Path('samples/eicar.com').write_text(r'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*', encoding='ascii')"
+
+# 2. Copy a legitimate Windows PE binary for baseline testing (do not commit to Git)
+Copy-Item "C:\Windows\System32\notepad.exe" -Destination "samples\notepad.exe"
+
+# 3. Create a non-PE dummy file to test UNSUPPORTED handling
+python -c "from pathlib import Path; Path('samples/fake_test.exe').write_text('not a valid PE binary', encoding='utf-8')"
+```
+
+---
+
+## 7. Usage
+
+### Command-Line Interface (CLI)
+
+```bash
+# Scan the default target (samples/eicar.com -> MALICIOUS 100/100)
+python main.py
+
+# Scan a legitimate Windows PE binary (samples/notepad.exe -> CLEAN 18/100)
 python main.py --file samples/notepad.exe
-```
 
-### Generate a JSON report
-
-```powershell
+# Export structured JSON report locally to output/
 python main.py --file samples/notepad.exe --format json
-```
 
-### Perform a dry run
-
-The dry run validates the file path, file size, and allowed directory scope without creating a report.
-
-```powershell
+# Validate scope and file size without writing a report
 python main.py --file samples/eicar.com --dry-run
+
+# Scan a file in another authorized directory
+python main.py --file D:/TestLab/sample.exe --allow-dir D:/TestLab
 ```
 
-### Scan from an authorized custom directory
+### Local Flask Web UI
 
-```powershell
-python main.py --file D:\TestLab\sample.exe --allow-dir D:\TestLab
-```
-
-### CLI options
-
-| Option | Description | Default |
-|---|---|---|
-| `--file` | Path to the target file | `samples/eicar.com` |
-| `--allow-dir` | Authorized directory allowed for scanning; repeatable | `samples/` |
-| `--out` | Directory for generated reports | `output` |
-| `--format` | Report format: `text` or `json` | `text` |
-| `--dry-run` | Validate scope without generating a report | Disabled |
-| `--serve` | Launch the local Flask Web UI | Disabled |
-| `--port` | Local port for the Web UI | `5000` |
-
-Before a CLI scan begins, the program requires explicit typed legal authorization.
-
----
-
-## Web UI Usage
-
-### Start the server
-
-```powershell
+```bash
 python main.py --serve
 ```
 
-Or use a custom local port:
-
-```powershell
-python main.py --serve --port 8080
-```
-
-Open:
-
-```text
-http://127.0.0.1:5000
-```
-
-Use the Web UI as follows:
-
-1. Select a file with `.exe`, `.dll`, `.sys`, or `.com` extension.
-2. Confirm authorization by ticking the Computer Crimes Act 1997 checkbox.
-3. Select **Run Static Analysis**.
-4. Review the verdict, file details, entropy results, MITRE ATT&CK findings, and network IOCs.
-
-The Web UI is intentionally restricted to localhost:
-
-- Host: `127.0.0.1`
-- Default port: `5000`
-- Debug mode: disabled
-
-### Stop the server
-
-Use either:
-
-- Press `Ctrl+C` in the terminal, or
-- Select **Stop Server** in the Web UI.
+1. Open <http://127.0.0.1:5000> in your browser.
+2. Select a Windows PE file (`.exe`, `.dll`, `.sys`, `.com`, max 50 MB).
+3. Tick the Computer Crimes Act 1997 authorization checkbox and click **Run Static Analysis**.
+4. Click **Stop Server** when finished to terminate the local session.
 
 ---
 
-## Output Reports
+## 8. Screenshots
 
-CLI reports are saved locally to the `output/` directory by default.
+Screenshots of the CLI output and Web UI dashboard are stored in `docs/`.
 
-Example filenames:
+**CLI Static Analysis Output** (`docs/cli_output.png`):
 
-```text
-malscope_notepad_suspicious_20261123_034441.txt
-malscope_notepad_suspicious_20261123_033003.json
-```
+![CLI Static Analysis Output](docs/cli_output.png)
 
-A report may include:
+**Local Web UI Upload & Legal Gate** (`docs/web_upload.png`):
 
-- File name and size
-- Hash values
-- PE metadata
-- Section entropy
-- Suspicious imports
-- MITRE ATT&CK mappings
-- Embedded network indicators
-- Risk score
-- Final verdict
+![Local Web UI Upload and Legal Gate](docs/web_upload.png)
 
-Web uploads are copied to a temporary UUID-named file and removed after analysis.
+**Dark-Theme Analysis Dashboard & MITRE ATT&CK Cards** (`docs/web_report.png`):
+
+![Dark-Theme Analysis Dashboard](docs/web_report.png)
 
 ---
 
-## Safety and Scope Guardrails
+## 9. Limitations
 
-### Mandatory authorization
-
-- CLI scans require explicit typed consent.
-- Web scans require server-side validation of `consent=agree`.
-
-### Directory scope
-
-CLI scans are restricted to `samples/` unless additional directories are passed with `--allow-dir`. Path traversal and out-of-scope paths are rejected.
-
-### File-size limit
-
-Both CLI and Web analysis enforce a maximum file size of 50 MB.
-
-### Upload isolation
-
-Web uploads are:
-
-- Limited to supported PE extensions
-- Named with random UUIDs
-- Stored temporarily under `output/.tmp_uploads/`
-- Deleted after analysis finishes
-
-### Host and request protection
-
-The Web UI validates the `Host` header and blocks cross-origin POST requests to reduce DNS-rebinding and CSRF risks.
-
-### Emergency kill switch
-
-- CLI: press `Ctrl+C`
-- Web: select **Stop Server**, or press `Ctrl+C` in the terminal
+- **No Dynamic Unpacking:** Packed or obfuscated binaries (e.g., UPX) are flagged via high section entropy (> 7.0), but compressed import tables are not unpacked prior to static inspection.
+- **Runtime API Resolution:** APIs loaded dynamically at runtime via `LoadLibrary` and `GetProcAddress` do not appear in the static Import Address Table (IAT).
+- **ASCII IOC Extraction:** The current IOC regex scans ASCII byte sequences and may miss UTF-16LE wide strings; version strings matching `x.x.x.x` can also appear as IPv4 candidates.
 
 ---
 
-## Limitations
+## 10. License
 
-- MalScope does not execute samples and cannot observe runtime behavior.
-- Packed or encrypted payloads, such as UPX-compressed files, may not expose their original imports or strings.
-- APIs resolved dynamically through `GetProcAddress` or similar runtime methods may be missed.
-- The current IOC parser primarily reads ASCII byte sequences and may miss UTF-16LE strings.
-- High section entropy is a heuristic, not proof of packing or malware.
-- Legitimate Windows binaries may trigger suspicious results. For example, `notepad.exe` may contain common Windows API imports or version strings that match heuristic rules.
-- Static results should be verified using dynamic analysis and additional malware-analysis tooling where appropriate.
-
----
-
-## Troubleshooting
-
-### `ModuleNotFoundError`
-
-Confirm that the virtual environment is active and dependencies are installed:
-
-```powershell
-pip install -r requirements.txt
-```
-
-### Port 5000 is already in use
-
-Start the Web UI on another port:
-
-```powershell
-python main.py --serve --port 8080
-```
-
-### File is outside the allowed directory
-
-Add an authorized directory explicitly:
-
-```powershell
-python main.py --file D:\TestLab\sample.exe --allow-dir D:\TestLab
-```
-
-### Unsupported file
-
-Confirm that the file is a Windows PE file and is not larger than 50 MB.
-
----
-
-## License
-
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+Licensed under the MIT License — see [LICENSE](LICENSE) for details.
