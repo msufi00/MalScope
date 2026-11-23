@@ -2,7 +2,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from malscope.core import analyze_file, save_report
+from malscope.core import analyze_file, render_text, save_report
 from malscope.guardrails import require_legal_authorization, setup_kill_switch, validate_scope
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -29,51 +29,6 @@ def parse_args():
     parser.add_argument("--format", choices=["text", "json"], default="text", help="Output report format (default: text)")
     parser.add_argument("--dry-run", action="store_true", help="Validate file and directory scope without generating a report")
     return parser.parse_args()
-
-
-def print_text_summary(report: dict):
-    """Print readable static analysis results to the terminal."""
-    f = report["file"]
-    r = report["risk"]
-    pe = report["pe"]
-
-    print("\n====================================================================")
-    print(f"  VERDICT: {r['verdict']}  |  RISK SCORE: {r['score']} / {r['max_score']}")
-    print("====================================================================")
-    for reason in r["reasons"]:
-        print(f"  * {reason}")
-
-    print("\n[FILE DETAILS]")
-    print(f"  Name    : {f['name']} ({f['size']} bytes)")
-    print(f"  Type    : {f['type']}")
-    print(f"  MD5     : {f['md5']}")
-    print(f"  SHA-256 : {f['sha256']}")
-    print(f"  Imphash : {f['imphash']}")
-    print(f"  Entropy : {f['overall_entropy']:.4f} / 8.0000")
-
-    print(f"\n[NETWORK IOCs] ({len(report['iocs']['urls'])} URL(s), {len(report['iocs']['ips'])} IP(s))")
-    for url in report["iocs"]["urls"][:10]:
-        print(f"  - URL: {url}")
-    for ip in report["iocs"]["ips"][:10]:
-        print(f"  - IP : {ip}")
-
-    if not pe["is_valid_pe"]:
-        print(f"\n[WARN] {pe['error']}")
-        return
-
-    print(f"\n[PE SECTIONS] ({len(pe['sections'])} sections)")
-    for sec in pe["sections"]:
-        flag = " [HIGH ENTROPY - Possible Packing]" if sec["high_entropy"] else ""
-        print(f"  - {sec['name']:<10} | Raw Size: {sec['raw_size']:<8} | Entropy: {sec['entropy']:.4f}{flag}")
-
-    print(f"\n[MITRE ATT&CK MAPPING] ({len(report['mitre_tactics'])} tactic(s))")
-    if not report["mitre_tactics"]:
-        print("  - None")
-    for tactic, techs in report["mitre_tactics"].items():
-        print(f"  [{tactic.upper()}]")
-        for t in techs:
-            apis_str = ", ".join(t["apis"])
-            print(f"    - {t['technique_name']} ({t['technique_id']}) -> {t['why']} [{apis_str}]")
 
 
 def main():
@@ -105,7 +60,7 @@ def main():
     if args.format == "json":
         print(json.dumps(report, indent=2))
     else:
-        print_text_summary(report)
+        print("\n" + render_text(report))
 
     print(f"\n[+] Report saved locally to: {saved_path}")
 
