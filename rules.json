@@ -1,0 +1,119 @@
+{
+  "entropy_threshold": 7.0,
+  "levels": {
+    "clean_max": 25,
+    "suspicious_max": 60
+  },
+  "suspicious_apis": [
+    {
+      "api": "VirtualAllocEx",
+      "category": "process_injection",
+      "weight": 20,
+      "why": "Allocates memory inside another process",
+      "mitre": {
+        "tactic": "Defense Evasion",
+        "technique_id": "T1055",
+        "technique_name": "Process Injection"
+      }
+    },
+    {
+      "api": "WriteProcessMemory",
+      "category": "process_injection",
+      "weight": 25,
+      "why": "Writes payload code into another process memory",
+      "mitre": {
+        "tactic": "Defense Evasion",
+        "technique_id": "T1055",
+        "technique_name": "Process Injection"
+      }
+    },
+    {
+      "api": "CreateRemoteThread",
+      "category": "process_injection",
+      "weight": 25,
+      "why": "Starts execution inside a remote process",
+      "mitre": {
+        "tactic": "Defense Evasion",
+        "technique_id": "T1055",
+        "technique_name": "Process Injection"
+      }
+    },
+    {
+      "api": "GetAsyncKeyState",
+      "category": "keylogging",
+      "weight": 20,
+      "why": "Hooks keyboard input to record keystrokes",
+      "mitre": {
+        "tactic": "Collection",
+        "technique_id": "T1056.001",
+        "technique_name": "Input Capture: Keylogging"
+      }
+    },
+    {
+      "api": "IsDebuggerPresent",
+      "category": "anti_analysis",
+      "weight": 15,
+      "why": "Checks if a debugger is attached to evade analysis",
+      "mitre": {
+        "tactic": "Defense Evasion",
+        "technique_id": "T1622",
+        "technique_name": "Debugger Evasion"
+      }
+    },
+    {
+      "api": "RegSetValueExA",
+      "category": "persistence",
+      "weight": 15,
+      "why": "Modifies Windows Registry keys for persistence",
+      "mitre": {
+        "tactic": "Persistence",
+        "technique_id": "T1547.001",
+        "technique_name": "Registry Run Keys / Startup Folder"
+      }
+    },
+    {
+      "api": "ShellExecuteA",
+      "category": "execution",
+      "weight": 15,
+      "why": "Executes external commands or programs",
+      "mitre": {
+        "tactic": "Execution",
+        "technique_id": "T1059",
+        "technique_name": "Command and Scripting Interpreter"
+      }
+    },
+    {
+      "api": "InternetOpenA",
+      "category": "network",
+      "weight": 15,
+      "why": "Initializes internet connection for C2 communication",
+      "mitre": {
+        "tactic": "Command and Control",
+        "technique_id": "T1071",
+        "technique_name": "Application Layer Protocol"
+      }
+    },
+    {
+      "api": "URLDownloadToFileA",
+      "category": "network",
+      "weight": 25,
+      "why": "Downloads external payloads from a remote URL",
+      "mitre": {
+        "tactic": "Command and Control",
+        "technique_id": "T1105",
+        "technique_name": "Ingress Tool Transfer"
+      }
+    },
+    {
+      "api": "CryptEncrypt",
+      "category": "ransomware",
+      "weight": 20,
+      "why": "Encrypts files or data using Windows CryptoAPI",
+      "mitre": {
+        "tactic": "Impact",
+        "technique_id": "T1486",
+        "technique_name": "Data Encrypted for Impact"
+      }
+    }
+  ]
+}
