@@ -2,6 +2,7 @@ import argparse
 import sys
 from pathlib import Path
 from malscope.guardrails import setup_kill_switch, require_legal_authorization, validate_scope
+from malscope.pe_parser import parse_pe_file
 
 
 def parse_args():
@@ -40,7 +41,20 @@ def main():
         sys.exit(0)
 
     Path(args.out).mkdir(parents=True, exist_ok=True)
-    print(f"[+] Starting static analysis on: {target}")
+    print(f"\n[+] Starting static analysis on: {target}")
+
+    pe_data = parse_pe_file(target)
+    print(f"[INFO] File    : {pe_data['file_name']} ({pe_data['file_size']} bytes)")
+    print(f"[INFO] MD5     : {pe_data['hashes']['md5']}")
+    print(f"[INFO] SHA-256 : {pe_data['hashes']['sha256']}")
+
+    if not pe_data["is_valid_pe"]:
+        print(f"[WARN] {pe_data['error']}")
+        sys.exit(0)
+
+    print(f"[INFO] Machine : {pe_data['headers']['machine']} | Compiled: {pe_data['headers']['compile_timestamp']}")
+    print(f"[INFO] Sections ({len(pe_data['sections'])}): {[s['name'] for s in pe_data['sections']]}")
+    print(f"[INFO] Imported DLLs ({len(pe_data['imports'])}): {list(pe_data['imports'].keys())}")
 
 
 if __name__ == "__main__":
