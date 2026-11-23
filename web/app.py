@@ -3,6 +3,7 @@ import sys
 import threading
 import uuid
 from pathlib import Path
+from urllib.parse import urlparse
 from flask import Flask, render_template, request
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
@@ -19,6 +20,25 @@ UPLOAD_TEMP_DIR = ROOT_DIR / "output" / ".tmp_uploads"
 
 app = Flask(__name__, template_folder="templates")
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_BYTES
+app.config["ACTIVE_PORT"] = 5000
+
+
+@app.before_request
+def enforce_local_origin():
+    """Block DNS rebinding and cross-site request forgery (CSRF) from external websites."""
+    port = app.config.get("ACTIVE_PORT", 5000)
+    allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}", "127.0.0.1", "localhost"}
+
+    host_header = request.headers.get("Host", "").strip().lower()
+    if host_header not in allowed_hosts:
+        return render_template("index.html", error="Forbidden: Invalid Host header."), 403
+
+    if request.method == "POST":
+        origin = request.headers.get("Origin", "").strip()
+        if origin:
+            origin_host = urlparse(origin).netloc.lower()
+            if origin_host not in allowed_hosts:
+                return render_template("index.html", error="Forbidden: Cross-site POST request blocked."), 403
 
 
 @app.errorhandler(RequestEntityTooLarge)
@@ -78,7 +98,7 @@ def analyze():
 
 @app.post("/shutdown")
 def shutdown():
-    """Web kill switch to safely stop the local Flask server."""
+    """Web kill switch to safely terminate the local Flask server."""
     threading.Timer(0.4, lambda: os._exit(0)).start()
     return (
         "<html><body style='background:#0b1120;color:#e2e8f0;font-family:system-ui,sans-serif;"
@@ -91,6 +111,7 @@ def shutdown():
 
 def run_web_server(host: str = "127.0.0.1", port: int = 5000):
     """Run Flask strictly on localhost with debug mode disabled."""
+    app.config["ACTIVE_PORT"] = port
     print("\n====================================================================")
     print(f"  MALSCOPE LOCAL WEB UI RUNNING AT: http://{host}:{port}")
     print("  Press Ctrl+C in terminal or click 'Stop Server' in UI to exit.")
