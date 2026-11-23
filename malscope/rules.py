@@ -59,3 +59,34 @@ def match_suspicious_apis(imports: dict, rules_data: dict) -> list[dict]:
                 })
 
     return matches
+
+def group_by_mitre_tactics(matched_apis: list[dict]) -> dict:
+    """Group matched suspicious APIs by MITRE ATT&CK tactic and technique."""
+    tactics = {}
+
+    for item in matched_apis:
+        mitre = item.get("mitre", {})
+        tactic_name = mitre.get("tactic", "Uncategorized")
+        tech_id = mitre.get("technique_id", "N/A")
+        tech_name = mitre.get("technique_name", "Unknown Technique")
+
+        if tactic_name not in tactics:
+            tactics[tactic_name] = []
+
+        # Check if this technique already exists under the current tactic
+        existing = next(
+            (t for t in tactics[tactic_name] if t["technique_id"] == tech_id),
+            None,
+        )
+        if existing:
+            if item["api"] not in existing["apis"]:
+                existing["apis"].append(item["api"])
+        else:
+            tactics[tactic_name].append({
+                "technique_id": tech_id,
+                "technique_name": tech_name,
+                "why": item.get("why", ""),
+                "apis": [item["api"]],
+            })
+
+    return tactics
