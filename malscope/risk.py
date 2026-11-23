@@ -13,8 +13,11 @@ def calculate_risk(
     score = 0
     reasons = []
 
+    is_valid_pe = bool(pe_data.get("is_valid_pe", False))
+    eicar_found = EICAR_SIGNATURE in raw_bytes
+
     # 1. Check safe EICAR antivirus test string
-    if EICAR_SIGNATURE in raw_bytes:
+    if eicar_found:
         score += 100
         reasons.append("EICAR Standard Anti-Virus Test Signature detected")
 
@@ -46,19 +49,23 @@ def calculate_risk(
             f"MITRE ATT&CK: Detected {len(mitre_tactics)} tactic(s) and {total_techniques} technique(s)"
         )
 
-    # Cap score at 100
     final_score = min(100, score)
 
-    levels = rules_data.get("levels", {})
-    clean_max = int(levels.get("clean_max", 25))
-    suspicious_max = int(levels.get("suspicious_max", 60))
-
-    if final_score <= clean_max:
-        verdict = "CLEAN"
-    elif final_score <= suspicious_max:
-        verdict = "SUSPICIOUS"
+    # 6. Determine verdict (non-PE files without EICAR are marked UNSUPPORTED)
+    if not is_valid_pe and not eicar_found:
+        verdict = "UNSUPPORTED"
+        reasons.insert(0, "Not a valid PE file: static PE analysis not possible")
     else:
-        verdict = "MALICIOUS"
+        levels = rules_data.get("levels", {})
+        clean_max = int(levels.get("clean_max", 25))
+        suspicious_max = int(levels.get("suspicious_max", 60))
+
+        if final_score <= clean_max:
+            verdict = "CLEAN"
+        elif final_score <= suspicious_max:
+            verdict = "SUSPICIOUS"
+        else:
+            verdict = "MALICIOUS"
 
     if not reasons:
         reasons.append("No suspicious APIs, high-entropy sections, or network indicators detected")
