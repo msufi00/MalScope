@@ -1,8 +1,10 @@
 import argparse
 import sys
 from pathlib import Path
+from malscope.analyzers import extract_iocs
 from malscope.guardrails import setup_kill_switch, require_legal_authorization, validate_scope
 from malscope.pe_parser import parse_pe_file
+from malscope.rules import load_rules, match_suspicious_apis, group_by_mitre_tactics
 
 
 def parse_args():
@@ -46,16 +48,23 @@ def main():
     print(f"\n[+] Starting static analysis on: {target}")
 
     pe_data = parse_pe_file(target)
+    iocs = extract_iocs(target.read_bytes())
+
     print(f"[INFO] File    : {pe_data['file_name']} ({pe_data['file_size']} bytes)")
     print(f"[INFO] Type    : {pe_data['file_type']}")
     print(f"[INFO] MD5     : {pe_data['hashes']['md5']}")
     print(f"[INFO] SHA-256 : {pe_data['hashes']['sha256']}")
     print(f"[INFO] Imphash : {pe_data['imphash']}")
     print(f"[INFO] Entropy : {pe_data['overall_entropy']:.4f} / 8.0000")
+    print(f"[INFO] IOCs    : {len(iocs['urls'])} URL(s), {len(iocs['ips'])} IP(s)")
 
     if not pe_data["is_valid_pe"]:
         print(f"[WARN] {pe_data['error']}")
         sys.exit(0)
+
+    rules_data = load_rules("rules.json")
+    matched_apis = match_suspicious_apis(pe_data["imports"], rules_data)
+    mitre_tactics = group_by_mitre_tactics(matched_apis)
 
     print(f"[INFO] Machine : {pe_data['headers']['machine']} | Compiled: {pe_data['headers']['compile_timestamp']}")
     print(f"\n[INFO] Sections ({len(pe_data['sections'])}):")
@@ -63,7 +72,17 @@ def main():
         flag = " [HIGH ENTROPY - Possible Packing]" if sec["high_entropy"] else ""
         print(f"  - {sec['name']:<10} | Raw Size: {sec['raw_size']:<8} | Entropy: {sec['entropy']:.4f}{flag}")
 
-    print(f"\n[INFO] Imported DLLs ({len(pe_data['imports'])}): {list(pe_data['imports'].keys())}")
+    print(f"\n[INFO] Suspicious APIs Matched ({len(matched_apis)}):")
+    if not matched_apis:
+        print("  - None")
+    for item in matched_apis:
+        print(f"  - {item['api']} ({item['dll']}) -> {item['why']} [+{item['weight']}]")
+
+    if mitre_tactics:
+        print(f"\n[INFO] MITRE ATT&CK Tactics ({len(mitre_tactics)}):")
+        for tactic, techs in mitre_tactics.items():
+            tech_list = ", ".join(f"{t['technique_id']} {t['technique_name']}" for t in techs)
+            print(f"  - {tactic}: {tech_list}")
 
 
 if __name__ == "__main__":
