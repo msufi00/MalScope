@@ -47,16 +47,23 @@ def main():
 
     pe_data = parse_pe_file(target)
     print(f"[INFO] File    : {pe_data['file_name']} ({pe_data['file_size']} bytes)")
+    print(f"[INFO] Type    : {pe_data['file_type']}")
     print(f"[INFO] MD5     : {pe_data['hashes']['md5']}")
     print(f"[INFO] SHA-256 : {pe_data['hashes']['sha256']}")
+    print(f"[INFO] Imphash : {pe_data['imphash']}")
+    print(f"[INFO] Entropy : {pe_data['overall_entropy']:.4f} / 8.0000")
 
     if not pe_data["is_valid_pe"]:
         print(f"[WARN] {pe_data['error']}")
         sys.exit(0)
 
     print(f"[INFO] Machine : {pe_data['headers']['machine']} | Compiled: {pe_data['headers']['compile_timestamp']}")
-    print(f"[INFO] Sections ({len(pe_data['sections'])}): {[s['name'] for s in pe_data['sections']]}")
-    print(f"[INFO] Imported DLLs ({len(pe_data['imports'])}): {list(pe_data['imports'].keys())}")
+    print(f"\n[INFO] Sections ({len(pe_data['sections'])}):")
+    for sec in pe_data["sections"]:
+        flag = " [HIGH ENTROPY - Possible Packing]" if sec["high_entropy"] else ""
+        print(f"  - {sec['name']:<10} | Raw Size: {sec['raw_size']:<8} | Entropy: {sec['entropy']:.4f}{flag}")
+
+    print(f"\n[INFO] Imported DLLs ({len(pe_data['imports'])}): {list(pe_data['imports'].keys())}")
 
 
 if __name__ == "__main__":
