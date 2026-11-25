@@ -114,6 +114,336 @@
         "technique_id": "T1486",
         "technique_name": "Data Encrypted for Impact"
       }
+    },
+    {
+      "api": "NtUnmapViewOfSection",
+      "category": "process_injection",
+      "weight": 20,
+      "why": "Hollows out a process by unmapping its original image before replacing it",
+      "mitre": {
+        "tactic": "Defense Evasion",
+        "technique_id": "T1055.012",
+        "technique_name": "Process Injection: Process Hollowing"
+      }
+    },
+    {
+      "api": "SetThreadContext",
+      "category": "process_injection",
+      "weight": 18,
+      "why": "Changes a thread's registers to hijack execution flow",
+      "mitre": {
+        "tactic": "Defense Evasion",
+        "technique_id": "T1055.003",
+        "technique_name": "Process Injection: Thread Execution Hijacking"
+      }
+    },
+    {
+      "api": "QueueUserAPC",
+      "category": "process_injection",
+      "weight": 18,
+      "why": "Queues code to run inside another thread (APC injection)",
+      "mitre": {
+        "tactic": "Defense Evasion",
+        "technique_id": "T1055.004",
+        "technique_name": "Process Injection: Asynchronous Procedure Call"
+      }
+    },
+    {
+      "api": "NtCreateThreadEx",
+      "category": "process_injection",
+      "weight": 22,
+      "why": "Native API way to start a thread in a remote process, often used to avoid CreateRemoteThread detection",
+      "mitre": {
+        "tactic": "Defense Evasion",
+        "technique_id": "T1055",
+        "technique_name": "Process Injection"
+      }
+    },
+    {
+      "api": "OpenProcess",
+      "category": "process_injection",
+      "weight": 6,
+      "why": "Gets a handle to another process (needed before injection, but also common in normal tools)",
+      "mitre": {
+        "tactic": "Defense Evasion",
+        "technique_id": "T1055",
+        "technique_name": "Process Injection"
+      }
+    },
+    {
+      "api": "VirtualProtect",
+      "category": "memory_manipulation",
+      "weight": 5,
+      "why": "Changes memory permissions, for example to make a buffer executable",
+      "mitre": {
+        "tactic": "Defense Evasion",
+        "technique_id": "T1055",
+        "technique_name": "Process Injection"
+      }
+    },
+    {
+      "api": "VirtualAlloc",
+      "category": "memory_manipulation",
+      "weight": 3,
+      "why": "Allocates memory that can be made executable (very common in legitimate programs, so low weight)",
+      "mitre": {
+        "tactic": "Defense Evasion",
+        "technique_id": "T1055",
+        "technique_name": "Process Injection"
+      }
+    },
+    {
+      "api": "RegCreateKeyExA",
+      "category": "persistence",
+      "weight": 2,
+      "why": "Creates registry keys, for example Run keys that start the program at boot",
+      "mitre": {
+        "tactic": "Persistence",
+        "technique_id": "T1547.001",
+        "technique_name": "Registry Run Keys / Startup Folder"
+      }
+    },
+    {
+      "api": "CreateServiceA",
+      "category": "persistence",
+      "weight": 15,
+      "why": "Installs a Windows service so the program survives reboot",
+      "mitre": {
+        "tactic": "Persistence",
+        "technique_id": "T1543.003",
+        "technique_name": "Create or Modify System Process: Windows Service"
+      }
+    },
+    {
+      "api": "StartServiceA",
+      "category": "persistence",
+      "weight": 5,
+      "why": "Starts a Windows service, often right after installing one",
+      "mitre": {
+        "tactic": "Persistence",
+        "technique_id": "T1543.003",
+        "technique_name": "Create or Modify System Process: Windows Service"
+      }
+    },
+    {
+      "api": "SetWindowsHookExA",
+      "category": "keylogging",
+      "weight": 20,
+      "why": "Installs a global hook that can capture keyboard input",
+      "mitre": {
+        "tactic": "Collection",
+        "technique_id": "T1056.001",
+        "technique_name": "Input Capture: Keylogging"
+      }
+    },
+    {
+      "api": "CheckRemoteDebuggerPresent",
+      "category": "anti_analysis",
+      "weight": 8,
+      "why": "Checks whether a debugger is attached to the process",
+      "mitre": {
+        "tactic": "Defense Evasion",
+        "technique_id": "T1622",
+        "technique_name": "Debugger Evasion"
+      }
+    },
+    {
+      "api": "NtQueryInformationProcess",
+      "category": "anti_analysis",
+      "weight": 6,
+      "why": "Can query debugger flags and other process info to detect analysis",
+      "mitre": {
+        "tactic": "Defense Evasion",
+        "technique_id": "T1622",
+        "technique_name": "Debugger Evasion"
+      }
+    },
+    {
+      "api": "GetProcAddress",
+      "category": "dynamic_resolution",
+      "weight": 1,
+      "why": "Resolves APIs at runtime, which can hide the real imports (very common, so low weight)",
+      "mitre": {
+        "tactic": "Defense Evasion",
+        "technique_id": "T1027.007",
+        "technique_name": "Obfuscated Files or Information: Dynamic API Resolution"
+      }
+    },
+    {
+      "api": "LoadLibraryA",
+      "category": "dynamic_resolution",
+      "weight": 2,
+      "why": "Loads DLLs at runtime, which can hide the real imports (very common, so low weight)",
+      "mitre": {
+        "tactic": "Defense Evasion",
+        "technique_id": "T1027.007",
+        "technique_name": "Obfuscated Files or Information: Dynamic API Resolution"
+      }
+    },
+    {
+      "api": "WinExec",
+      "category": "execution",
+      "weight": 12,
+      "why": "Runs a command line directly (legacy API, rarely used by modern legitimate software)",
+      "mitre": {
+        "tactic": "Execution",
+        "technique_id": "T1059",
+        "technique_name": "Command and Scripting Interpreter"
+      }
+    },
+    {
+      "api": "ShellExecuteExA",
+      "category": "execution",
+      "weight": 10,
+      "why": "Executes external commands or programs",
+      "mitre": {
+        "tactic": "Execution",
+        "technique_id": "T1059",
+        "technique_name": "Command and Scripting Interpreter"
+      }
+    },
+    {
+      "api": "CreateProcessA",
+      "category": "execution",
+      "weight": 2,
+      "why": "Starts another process (common in legitimate software, so low weight)",
+      "mitre": {
+        "tactic": "Execution",
+        "technique_id": "T1106",
+        "technique_name": "Native API"
+      }
+    },
+    {
+      "api": "InternetOpenUrlA",
+      "category": "network",
+      "weight": 15,
+      "why": "Opens a remote URL directly, often to fetch a payload or config",
+      "mitre": {
+        "tactic": "Command and Control",
+        "technique_id": "T1071",
+        "technique_name": "Application Layer Protocol"
+      }
+    },
+    {
+      "api": "InternetReadFile",
+      "category": "network",
+      "weight": 8,
+      "why": "Reads data from a remote server after an internet connection is opened",
+      "mitre": {
+        "tactic": "Command and Control",
+        "technique_id": "T1071",
+        "technique_name": "Application Layer Protocol"
+      }
+    },
+    {
+      "api": "HttpSendRequestA",
+      "category": "network",
+      "weight": 12,
+      "why": "Sends an HTTP request, can be used for command and control traffic",
+      "mitre": {
+        "tactic": "Command and Control",
+        "technique_id": "T1071.001",
+        "technique_name": "Application Layer Protocol: Web Protocols"
+      }
+    },
+    {
+      "api": "connect",
+      "category": "network",
+      "weight": 6,
+      "why": "Opens a raw socket connection to a remote host",
+      "mitre": {
+        "tactic": "Command and Control",
+        "technique_id": "T1095",
+        "technique_name": "Non-Application Layer Protocol"
+      }
+    },
+    {
+      "api": "AdjustTokenPrivileges",
+      "category": "privilege",
+      "weight": 15,
+      "why": "Enables powerful privileges such as SeDebugPrivilege for the process",
+      "mitre": {
+        "tactic": "Privilege Escalation",
+        "technique_id": "T1134",
+        "technique_name": "Access Token Manipulation"
+      }
+    },
+    {
+      "api": "OpenProcessToken",
+      "category": "privilege",
+      "weight": 1,
+      "why": "Opens a process token, usually the first step before changing privileges",
+      "mitre": {
+        "tactic": "Privilege Escalation",
+        "technique_id": "T1134",
+        "technique_name": "Access Token Manipulation"
+      }
+    },
+    {
+      "api": "LookupPrivilegeValueA",
+      "category": "privilege",
+      "weight": 5,
+      "why": "Looks up a privilege name, normally followed by AdjustTokenPrivileges",
+      "mitre": {
+        "tactic": "Privilege Escalation",
+        "technique_id": "T1134",
+        "technique_name": "Access Token Manipulation"
+      }
+    },
+    {
+      "api": "CryptGenKey",
+      "category": "ransomware",
+      "weight": 6,
+      "why": "Generates an encryption key, a step before encrypting files",
+      "mitre": {
+        "tactic": "Impact",
+        "technique_id": "T1486",
+        "technique_name": "Data Encrypted for Impact"
+      }
+    },
+    {
+      "api": "CryptAcquireContextA",
+      "category": "ransomware",
+      "weight": 3,
+      "why": "Gets a crypto provider handle (common in legitimate software, so low weight)",
+      "mitre": {
+        "tactic": "Impact",
+        "technique_id": "T1486",
+        "technique_name": "Data Encrypted for Impact"
+      }
+    },
+    {
+      "api": "CryptUnprotectData",
+      "category": "credential_access",
+      "weight": 8,
+      "why": "Decrypts data protected by Windows, used to steal saved browser or app passwords",
+      "mitre": {
+        "tactic": "Credential Access",
+        "technique_id": "T1555",
+        "technique_name": "Credentials from Password Stores"
+      }
+    },
+    {
+      "api": "CredEnumerateA",
+      "category": "credential_access",
+      "weight": 10,
+      "why": "Lists saved credentials from Windows Credential Manager",
+      "mitre": {
+        "tactic": "Credential Access",
+        "technique_id": "T1555.004",
+        "technique_name": "Credentials from Password Stores: Windows Credential Manager"
+      }
+    },
+    {
+      "api": "CreateToolhelp32Snapshot",
+      "category": "discovery",
+      "weight": 6,
+      "why": "Lists running processes, used to find targets or security tools",
+      "mitre": {
+        "tactic": "Discovery",
+        "technique_id": "T1057",
+        "technique_name": "Process Discovery"
+      }
     }
   ]
 }
