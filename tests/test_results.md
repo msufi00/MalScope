@@ -48,25 +48,46 @@ All commands were run from the MalScope project folder with the virtual environm
 ## Command-Line Interface (CLI)
 
 ### `empty.exe`
+
 ![CLI empty.exe](test_results_images/cli-01-empty.png)
 
+
+
 ### Over 50 MB (`big_51mb.exe`)
+
 ![CLI over 50 MB](test_results_images/cli-02-over-50mb.png)
 
+
+
 ### Under 50 MB (`big_49mb.exe`)
+
 ![CLI under 50 MB](test_results_images/cli-03-under-50mb.png)
 
+
+
 ### `hostname.exe`
+
 ![CLI hostname.exe](test_results_images/cli-04-hostname.png)
 
+
+
 ### `hostname_upx.exe`
+
 ![CLI hostname_upx.exe](test_results_images/cli-05-hostname-upx.png)
 
+
+
+
 ### Wrong path
+
 Shows the error message "File not found".
+
 ![CLI wrong path](test_results_images/cli-06-wrong-path.png)
 
+
+
 ### `eicar.com`
+
 ![CLI eicar.com](test_results_images/cli-07-eicar.png)
 
 ---
@@ -74,56 +95,91 @@ Shows the error message "File not found".
 ## Web User Interface (Web UI)
 
 ### Start the server
+
 ![Start the server](test_results_images/web-01-start-server.png)
 
+
 ### MalScope Web UI
+
 ![MalScope Web UI](test_results_images/web-02-home.png)
 
+
 ### `empty.exe`
+
 Selected:
+
 ![empty.exe selected](test_results_images/web-03-empty-selected.png)
 
+
 Result: the empty file cannot be analyzed.
+
 ![empty.exe result](test_results_images/web-04-empty-result.png)
 
 ### File under 50 MB (`big_49mb.exe`)
+
 Selected:
+
 ![Under 50 MB selected](test_results_images/web-05-under-50mb-selected.png)
 
+
 Result: the under-50 MB scan result.
+
 ![Under 50 MB result](test_results_images/web-06-under-50mb-result.png)
 
+
 ### File above 50 MB (`big_51mb.exe`)
+
 Selected:
+
 ![Over 50 MB selected](test_results_images/web-07-over-50mb-selected.png)
 
+
 Result: the file exceeds the maximum limit.
+
 ![Over 50 MB result](test_results_images/web-08-over-50mb-result.png)
 
+
 ### `hostname.exe`
+
 Selected:
+
 ![hostname.exe selected](test_results_images/web-09-hostname-selected.png)
 
+
 Result:
+
 ![hostname.exe result](test_results_images/web-10-hostname-result.png)
 
+
 ### UPX file (`hostname_upx.exe`)
+
 Selected:
+
 ![hostname_upx.exe selected](test_results_images/web-11-upx-selected.png)
 
+
 Result:
+
 ![hostname_upx.exe result](test_results_images/web-12-upx-result.png)
 
+
 ### Non-PE file (`README.md`)
+
 Selected:
+
 ![README.md selected](test_results_images/web-13-readme-selected.png)
 
+
 Result: error message for an unsupported file.
+
 ![README.md result](test_results_images/web-14-readme-result.png)
 
 ### `eicar.com`
+
 Selected:
+
 ![eicar.com selected](test_results_images/web-15-eicar-selected.png)
 
 Result:
+
 ![eicar.com result](test_results_images/web-16-eicar-result.png)
