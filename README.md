@@ -32,7 +32,7 @@ MalScope is a local-only static malware triage tool built in Python for inspecti
 ### Repository Layout
 
 - `main.py` — CLI entry point, argument parser, and `--serve` web launcher.
-- `rules.json` — Detection rule definitions, API weights, entropy threshold (7.0), and MITRE ATT&CK mappings.
+- `rules.json` — Detection rules for 40 Windows APIs, tuned weights, entropy threshold (7.0), and MITRE ATT&CK mappings.
 - `malscope/guardrails.py` — Legal authorization banner, directory scope validation, 50 MB size check, and Ctrl+C kill switch.
 - `malscope/pe_parser.py` — PE header validation, MD5 / SHA-256 / imphash computation, section extraction, and import table parsing.
 - `malscope/analyzers.py` — Shannon entropy calculation (0.0–8.0) and raw byte IOC extraction (URLs and IPv4 addresses).
@@ -41,6 +41,7 @@ MalScope is a local-only static malware triage tool built in Python for inspecti
 - `malscope/core.py` — Unified `analyze_file()` pipeline, shared `render_text()` formatter, and local report saver.
 - `web/app.py` & `web/templates/` — Offline Flask Web UI (127.0.0.1) with server-side consent validation and Host/Origin CSRF protection.
 - `samples/` — Authorized local sample directory (only `.gitkeep` is tracked in Git; binaries are excluded).
+- `tests/` — Safe sample generator (`make_samples.ps1`) and recorded test results (`test_results.md`, `Test_Results.pdf`).
 - `output/` — Local report directory (`.txt` and `.json` outputs; ignored by Git).
 - `docs/` — Documentation screenshots for CLI and Web UI reports.
 
@@ -59,6 +60,8 @@ In the incident response and cyber attack lifecycle, MalScope operates in the **
 | Collection | T1056.001 Input Capture: Keylogging | `GetAsyncKeyState` | Captures user keystrokes to steal credentials or sensitive input. |
 | Command & Control | T1071 Application Layer Protocol / T1105 Ingress Tool Transfer | `InternetOpenA` / `W`, `URLDownloadToFileA` / `W` | Establishes C2 channels or downloads additional malware stages. |
 | Impact | T1486 Data Encrypted for Impact | `CryptEncrypt` | Encrypts local user files (common ransomware indicator). |
+
+*The table shows representative rules. The full set of 40 monitored APIs and their weights is defined in `rules.json`.*
 
 ---
 
@@ -136,8 +139,9 @@ pip install -r requirements.txt
 To respect copyright and safety, `samples/` only tracks `.gitkeep` in Git. Prepare local test files inside `samples/` before running commands:
 
 ```powershell
-# 1. Create the safe EICAR standard antivirus test file (default CLI target)
-python -c "from pathlib import Path; Path('samples/eicar.com').write_text(r'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*', encoding='ascii')"
+# 1. Create the safe EICAR standard antivirus test file (default CLI target, must be exactly 68 bytes)
+#    Single quotes are required: PowerShell expands $EICAR and $H inside double quotes and corrupts the string.
+Set-Content -Path samples/eicar.com -Value 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*' -Encoding ascii -NoNewline
 
 # 2. Copy a legitimate Windows PE binary for baseline testing (do not commit to Git)
 Copy-Item "C:\Windows\System32\notepad.exe" -Destination "samples\notepad.exe"
@@ -145,6 +149,8 @@ Copy-Item "C:\Windows\System32\notepad.exe" -Destination "samples\notepad.exe"
 # 3. Create a non-PE dummy file to test UNSUPPORTED handling
 python -c "from pathlib import Path; Path('samples/fake_test.exe').write_text('not a valid PE binary', encoding='utf-8')"
 ```
+
+To generate all edge-case samples at once (empty file, 45 MB and 51 MB size-cap files, non-PE file, EICAR, baseline binary), run `.\tests\make_samples.ps1` from the project root. Recorded results are in `tests/test_results.md`.
 
 ---
 
@@ -156,7 +162,7 @@ python -c "from pathlib import Path; Path('samples/fake_test.exe').write_text('n
 # Scan the default target (samples/eicar.com -> MALICIOUS 100/100)
 python main.py
 
-# Scan a legitimate Windows PE binary (samples/notepad.exe -> CLEAN 18/100)
+# Scan a legitimate Windows PE binary (samples/notepad.exe -> CLEAN 19/100)
 python main.py --file samples/notepad.exe
 
 # Export structured JSON report locally to output/
@@ -204,7 +210,7 @@ Screenshots of the CLI output and Web UI dashboard are stored in `docs/`.
 
 - **No Dynamic Unpacking:** Packed or obfuscated binaries (e.g., UPX) are flagged via high section entropy (> 7.0), but compressed import tables are not unpacked prior to static inspection.
 - **Runtime API Resolution:** APIs loaded dynamically at runtime via `LoadLibrary` and `GetProcAddress` do not appear in the static Import Address Table (IAT).
-- **ASCII IOC Extraction:** The current IOC regex scans ASCII byte sequences and may miss UTF-16LE wide strings; version strings matching `x.x.x.x` can also appear as IPv4 candidates.
+- **ASCII IOC Extraction:** The IOC regex scans ASCII byte sequences only and may miss UTF-16LE wide strings. Well-known XML schema URLs and version-like numbers (e.g. `5.1.0.0`) are filtered out, but other benign strings can still appear as IOC candidates.
 
 ---
 

@@ -8,3 +8,7 @@ dist/
 *.egg-info/
 output/
 .env
+
+# Test samples: keep the folder, never commit binaries
+samples/*
+!samples/.gitkeep
